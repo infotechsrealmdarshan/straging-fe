@@ -4,7 +4,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(to bottom right, #a78bfa 0%, #8b5cf6 40%, #7c3aed 100%);
     padding: 20px;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
@@ -97,6 +97,7 @@
     align-items: center;
     justify-content: center;
     font-size: 20px;
+    color: white;
 }
 
 .auth-header h1 {
@@ -155,83 +156,36 @@
     color: #9ca3af;
 }
 
-.password-input-wrapper {
+/* Password field with visibility toggle */
+.password-input-wrap {
     position: relative;
-    display: block;
+    display: flex;
+    align-items: center;
 }
 
-.password-field {
-    width: 100%;
-    padding-right: 44px;
-    box-sizing: border-box;
+.password-input-wrap input {
+    padding-right: 48px;
 }
 
-.password-eye-btn {
+.password-toggle {
     position: absolute;
+    right: 12px;
     top: 50%;
-    right: 10px;
     transform: translateY(-50%);
-    width: 36px;
-    height: 36px;
-    padding: 0;
+    background: none;
     border: none;
-    background: transparent;
-    color: #6b7280;
+    padding: 4px;
     cursor: pointer;
+    color: #6b7280;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
-    transition: color 0.2s, background 0.2s;
+    border-radius: 4px;
+    transition: color 0.2s;
 }
 
-.password-eye-btn:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.08);
-}
-
-.password-eye-btn:focus {
-    outline: none;
-    color: #667eea;
-}
-
-.password-eye-btn svg {
-    display: block;
-}
-
-.password-label-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 6px;
-}
-
-.password-label-row > label[for="password"] {
-    margin-bottom: 0;
-}
-
-.show-password-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: #6b7280;
-    cursor: pointer;
-    font-weight: normal;
-    margin: 0;
-    user-select: none;
-}
-
-.show-password-label input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    margin: 0;
-    accent-color: #667eea;
-    cursor: pointer;
-}
-
-.show-password-label span {
-    white-space: nowrap;
+.password-toggle:hover {
+    color: #374151;
 }
 
 .field-error {
@@ -297,8 +251,9 @@
 }
 
 .auth-button.primary {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(to right, #3b82f6, #7c3aed);
     color: white;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35);
 }
 
 .auth-button.primary:hover {

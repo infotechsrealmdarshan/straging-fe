@@ -23,7 +23,10 @@ class Home extends Component {
     }
 
     handleCaptureComplete = (files) => {
+        if (!files || files.length === 0) return;
         console.log("🔄 Panorama Capture Done. Switching to Upload...", files.length);
+        // Always set local state so we have upload + files; then tell App to show upload page
+        this.setState({ currentView: 'upload', selectedFiles: files });
         if (this.props.onCreateStraging) {
             this.props.onCreateStraging(files);
         } else {

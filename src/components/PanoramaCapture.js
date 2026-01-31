@@ -353,17 +353,19 @@ class PanoramaCapture extends Component {
             return;
         }
 
-        console.log('🎬 Starting panorama creation...');
-        this.setState({ isProcessing: true, status: "STITCHING 360..." });
+        const framesToStitch = this.state.capturedFrames;
+        const frameCount = framesToStitch.length;
+        console.log('🎬 Starting panorama creation...', frameCount, 'frames (all will be stitched)');
+        this.setState({ isProcessing: true, status: `STITCHING 1/${frameCount}...` });
 
         try {
-            // Give UI a moment to show the processing overlay
-            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => setTimeout(r, 100));
 
-            console.log(`📸 Stitching ${this.state.capturedFrames.length} frames...`);
+            const onProgress = (current, total) => {
+                this.setState(s => ({ ...s, status: `STITCHING ${current}/${total}...` }));
+            };
 
-            // Perform Professional Stitching
-            const result = await OpenCVStitcher.stitchPanorama(this.state.capturedFrames);
+            const result = await OpenCVStitcher.stitchPanorama(framesToStitch, { onProgress });
 
             if (!result || !result.blob) {
                 console.error("❌ Stitching yielded no result.");
@@ -378,16 +380,20 @@ class PanoramaCapture extends Component {
 
             console.log("✅ 360 Stitched Successfully:", panoramaFile.name, `${(panoramaFile.size / 1024 / 1024).toFixed(2)} MB`);
 
-            // Delay to ensure state is stable before callback
-            await new Promise(r => setTimeout(r, 300));
+            const onComplete = this.props.onComplete;
+            this.setState({ isProcessing: false, status: "DONE" });
 
-            // Call parent callback
-            if (this.props.onComplete) {
+            // Call parent in next tick so navigation happens after state is committed
+            if (onComplete) {
                 console.log('📤 Sending panorama to parent component...');
-                this.props.onComplete([panoramaFile]);
-            } else {
-                console.warn('⚠️ No onComplete callback provided');
-                this.setState({ isProcessing: false });
+                const files = [panoramaFile];
+                setTimeout(() => {
+                    try {
+                        onComplete(files);
+                    } catch (e) {
+                        console.error('onComplete error:', e);
+                    }
+                }, 0);
             }
 
         } catch (err) {
@@ -523,8 +529,8 @@ class PanoramaCapture extends Component {
                 {this.state.isProcessing && (
                     <div className="overlay-full" style={{ background: '#000', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 100000 }}>
                         <div className="spinner" style={{ width: '60px', height: '60px', border: '5px solid #111', borderTopColor: '#00FF7F', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-                        <h2 style={{ color: '#fff', marginTop: '30px', letterSpacing: '2px', fontWeight: '800' }}>STITCHING 360 STUDIO...</h2>
-                        <p style={{ color: '#00FF7F', opacity: 0.9, marginTop: '10px' }}>Mapping Spherical Coordinates</p>
+                        <h2 style={{ color: '#fff', marginTop: '30px', letterSpacing: '2px', fontWeight: '800' }}>{this.state.status || 'STITCHING 360...'}</h2>
+                        <p style={{ color: '#00FF7F', opacity: 0.9, marginTop: '10px' }}>Please wait — do not close</p>
                     </div>
                 )}
                 {needsSensorClick && (<div className="overlay-full"><h2>360° Vision</h2><p>Syncing world sensors...</p><button className="btn-primary" onClick={() => this.handleStart(true)}>ACTIVATE</button></div>)}

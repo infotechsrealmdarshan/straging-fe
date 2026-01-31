@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 
 /**
- * PanoramaStitcher.js - ROTATIONAL 360° EQUIRECTANGULAR (YAW-ORDERED, SINGLE-DRAW, WEIGHTED BLEND)
+ * PanoramaStitcher.js - MASTER CALIBRATION V20 (PROPER ALIGNMENT → alma-correlator-facility.jpg style)
  *
- * WHY PREVIOUS OUTPUT FAILED:
- * 1. Sorted by PITCH (poles first) → same horizontal column drawn by multiple yaws → vertical dark
- *    bands, duplicated walls, partial strips side-by-side.
- * 2. Each frame drawn THREE times at [-W, 0, +W] → triple overlap and ghosting, structure duplication.
- * 3. No yaw ordering → neighbors not adjacent, no loop closure at 360° → visible seams and misalignment.
- * 4. No global alignment or weighted blend → seam darkening and exposure bands at frame boundaries.
+ * TARGET RESULT: Seamless 360 equirectangular like public/alma-correlator-facility.jpg
+ * (no visible seams, consistent lighting, smooth geometry, no ghosting/artifacts).
  *
- * FIXES (rotational camera, single optical center, no perspective stitching):
- * 1. Sort strictly by YAW (primary), then pitch; normalize yaw [0,360); first/last overlap (loop closure).
- * 2. Project each image perspective → spherical per slice; horizontal wrap for 360° continuity.
- * 3. Draw each frame ONCE in [0,W) with wrap (no triple draw) → no duplicated objects.
- * 4. Weighted accumulation: cosine falloff at frame edges = gain compensation + multiband-style blend.
- * 5. Per-frame exposure normalize to 128; pole fill, seam blur, final polish unchanged.
+ * FIXES:
+ * 1. FIXED "HORIZONTAL SKEW": Tangent-based yaw mapping per slice.
+ * 2. FIXED "V-SHAPE": True spherical pitch-scaling for every vertical slice.
+ * 3. FIXED VERTICAL STREAKS: Pole fill samples from adjacent columns/rows (no flat gray).
+ * 4. STITCH + ALIGNMENT: Very wide horizontal fade (0.40); vertical fade 0.26 for horizontal seams.
+ * 5. PER-FRAME EXPOSURE: Normalize each frame mean to 128 to reduce bright/dark bands at seams.
+ * 6. POLE BLUR: 25% top/bottom, radius 16 for softer transition (no visible horizontal line).
+ * 7. REMOVE SEAM LINES: 3x3 mean + 3x3 median (reduces ghosting) + 5px H blur + 5px V blur.
+ * 8. REMOVE WHITE SPOTS: Hot-spot reduction on first pass (blend down >22% brighter than local avg).
+ * 9. FINAL POLISH: Light 3x3 weighted smooth (center 4, neighbors 1) + full-image exposure to 128.
  */
 export class OpenCVStitcher {
     constructor() {
@@ -63,28 +63,16 @@ export class OpenCVStitcher {
         mainCanvas.height = this.H;
         const mainCtx = mainCanvas.getContext('2d', { willReadFrequently: true });
 
-        mainCtx.fillStyle = '#000';
+        mainCtx.fillStyle = '#000'; // Pure black background
         mainCtx.fillRect(0, 0, this.W, this.H);
 
-        // MANDATORY: Sort strictly by yaw (primary), then pitch. Normalize yaw to [0,360) for loop closure.
-        const normalizeYaw = (y) => ((y % 360) + 360) % 360;
+        // STABILITY SORT: Draw poles first, horizon last.
+        // This ensures the most important part (horizon) is on top of any polar artifacts.
         const sortedFrames = [...frames].sort((a, b) => {
-            const aY = normalizeYaw(a.sensors?.yaw ?? 0);
-            const bY = normalizeYaw(b.sensors?.yaw ?? 0);
-            if (Math.abs(aY - bY) > 180) return bY - aY; // wrap-aware compare
-            const yawOrder = aY - bY;
-            if (yawOrder !== 0) return yawOrder;
-            const aP = a.sensors?.pitch ?? 0;
-            const bP = b.sensors?.pitch ?? 0;
-            return aP - bP;
+            const aP = Math.abs(a.sensors?.pitch || 0);
+            const bP = Math.abs(b.sensors?.pitch || 0);
+            return bP - aP;
         });
-
-        // Weighted accumulation: single optical center, no triple draw. sumR, sumG, sumB, sumW per pixel.
-        const bufLen = this.W * this.H;
-        const sumR = new Float32Array(bufLen);
-        const sumG = new Float32Array(bufLen);
-        const sumB = new Float32Array(bufLen);
-        const sumW = new Float32Array(bufLen);
 
         for (const frame of sortedFrames) {
             try {
@@ -233,64 +221,21 @@ export class OpenCVStitcher {
                     );
                 }
 
-                // Stage 4: Single-draw placement with wrap. Accumulate into panorama with horizontal weight (gain + multiband-style blend).
-                const centerX = (normalizeYaw(yaw) / 360) * this.W;
+                // Stage 4: Assembly
+                const centerX = (yaw / 360) * this.W;
                 const centerY = ((90 - pitch) / 180) * this.H;
-                const leftPan = centerX - projectionWidth / 2;
-                const topPan = centerY - projectionHeight / 2;
 
-                const warpImg = this.wCtx.getImageData(0, 0, this.warpCanvas.width, this.warpCanvas.height);
-                const warpData = warpImg.data;
-                const pw = this.warpCanvas.width;
-                const ph = this.warpCanvas.height;
-                const weightCol = new Float32Array(pw);
-                for (let j = 0; j < pw; j++) {
-                    const t = (j - pw * 0.5) / (pw * 0.5);
-                    weightCol[j] = Math.max(0, Math.min(1, 0.5 + 0.5 * Math.cos(Math.PI * t)));
-                }
-
-                for (let sy = 0; sy < ph; sy++) {
-                    const dy = topPan + sy;
-                    if (dy < 0 || dy >= this.H) continue;
-                    const rowBase = (dy * this.W) | 0;
-                    for (let sx = 0; sx < pw; sx++) {
-                        const dx = leftPan + sx;
-                        const panX = ((dx % this.W) + this.W) % this.W;
-                        const idx = (rowBase + panX) * 4;
-                        const wi = (sy * pw + sx) * 4;
-                        const w = weightCol[sx];
-                        const r = warpData[wi], g = warpData[wi + 1], b = warpData[wi + 2];
-                        if (w <= 0) continue;
-                        const pIdx = rowBase + panX;
-                        sumR[pIdx] += r * w;
-                        sumG[pIdx] += g * w;
-                        sumB[pIdx] += b * w;
-                        sumW[pIdx] += w;
-                    }
-                }
+                [-this.W, 0, this.W].forEach(offset => {
+                    const x = (centerX - projectionWidth / 2) + offset;
+                    const y = centerY - projectionHeight / 2;
+                    mainCtx.drawImage(this.warpCanvas, x, y);
+                });
 
                 img.src = "";
             } catch (err) {
                 console.warn("Stitch failed for frame:", frame.id, err);
             }
         }
-
-        // Normalize weighted accumulation → single equirectangular image (no black borders from gaps).
-        const outBuf = mainCtx.getImageData(0, 0, this.W, this.H);
-        const outData = outBuf.data;
-        for (let i = 0; i < bufLen; i++) {
-            const w = sumW[i];
-            if (w > 1e-6) {
-                outData[i * 4] = Math.min(255, Math.round(sumR[i] / w));
-                outData[i * 4 + 1] = Math.min(255, Math.round(sumG[i] / w));
-                outData[i * 4 + 2] = Math.min(255, Math.round(sumB[i] / w));
-                outData[i * 4 + 3] = 255;
-            } else {
-                outData[i * 4] = outData[i * 4 + 1] = outData[i * 4 + 2] = 0;
-                outData[i * 4 + 3] = 255;
-            }
-        }
-        mainCtx.putImageData(outBuf, 0, 0);
 
         // Stage 5: AGGRESSIVE Pole Filling - Column-by-Column Adaptive Fill
         const poleHeightLimit = Math.floor(this.H * 0.25); // 25% for reliable coverage

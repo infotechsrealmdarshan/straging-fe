@@ -102,10 +102,12 @@ class App extends Component {
     }
 
     handleCreateStraging = (images = []) => {
-        this.setState({
+        const files = Array.isArray(images) ? images : [];
+        this.setState(prev => ({
+            ...prev,
             currentPage: 'upload',
-            initialImages: images
-        });
+            initialImages: files
+        }));
     }
 
     handleViewStragings = () => {
@@ -241,7 +243,8 @@ class App extends Component {
             case 'upload':
                 return (
                     <StragingUpload
-                        initialImages={this.state.initialImages}
+                        key={`upload-${(this.state.initialImages || []).length}-${(this.state.initialImages || [])[0]?.name || ''}`}
+                        initialImages={this.state.initialImages || []}
                         onUploadSuccess={this.handleStragingUploadSuccess}
                         onCancel={() => this.setState({ currentPage: 'home' })}
                     />

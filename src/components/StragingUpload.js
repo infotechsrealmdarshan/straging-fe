@@ -290,7 +290,7 @@ class StragingUpload extends Component {
                     </div>
 
                     <div className="form-group">
-                        <label htmlFor="imageFiles">Project Images (Up to 10) *</label>
+                        <label htmlFor="imageFiles">Project Images (1 panorama or up to 10 photos) *</label>
                         <input
                             type="file"
                             id="imageFiles"
@@ -324,7 +324,18 @@ class StragingUpload extends Component {
                             <div className="image-previews-container">
                                 {imagePreviews.map((preview, index) => (
                                     <div key={index} className="image-preview">
-                                        <img src={preview} alt={`Preview ${index}`} />
+                                        <img
+                                            src={preview}
+                                            alt={`Preview ${index}`}
+                                            onError={(e) => {
+                                                e.target.style.display = 'none';
+                                                const fallback = e.target.nextElementSibling;
+                                                if (fallback) fallback.style.display = 'flex';
+                                            }}
+                                        />
+                                        <div className="preview-fallback" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', minHeight: '120px', background: '#222', color: '#888', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                                            Preview unavailable — file is attached
+                                        </div>
                                         <div className="preview-info">
                                             <p>{imageFiles[index]?.name}</p>
                                             <button
