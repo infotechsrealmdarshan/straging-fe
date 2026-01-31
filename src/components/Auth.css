@@ -155,6 +155,85 @@
     color: #9ca3af;
 }
 
+.password-input-wrapper {
+    position: relative;
+    display: block;
+}
+
+.password-field {
+    width: 100%;
+    padding-right: 44px;
+    box-sizing: border-box;
+}
+
+.password-eye-btn {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.password-eye-btn:hover {
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.08);
+}
+
+.password-eye-btn:focus {
+    outline: none;
+    color: #667eea;
+}
+
+.password-eye-btn svg {
+    display: block;
+}
+
+.password-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.password-label-row > label[for="password"] {
+    margin-bottom: 0;
+}
+
+.show-password-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #6b7280;
+    cursor: pointer;
+    font-weight: normal;
+    margin: 0;
+    user-select: none;
+}
+
+.show-password-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #667eea;
+    cursor: pointer;
+}
+
+.show-password-label span {
+    white-space: nowrap;
+}
+
 .field-error {
     display: block;
     color: #ef4444;
