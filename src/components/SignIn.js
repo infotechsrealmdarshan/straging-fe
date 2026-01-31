@@ -8,7 +8,7 @@ class SignIn extends Component {
         super(props);
         this.state = {
             email: 'test@gmail.com',
-            password: 'Test123',
+            password: 'Test1234',
             showPassword: false,
             isLoading: false,
             error: ''
@@ -147,3 +147,4 @@ class SignIn extends Component {
 }
 
 export default SignIn;
+
